@@ -98,6 +98,10 @@ ApplicationWindow {
                 device_name.text = (connected ? qsTr("Connected ") : qsTr("Disconnected ")) + select_device.name + " (" + select_device.address + ")"
                 select_device.connected = connected
                 select_device.visible = ! connected
+                if( connected ) {
+                    cfg.setting('bluetooth/last_device_name', select_device.name)
+                    cfg.setting('bluetooth/last_device_address', select_device.address)
+                }
             }
         }
     }
@@ -125,7 +129,7 @@ ApplicationWindow {
                 enabled: select_device.connected
                 height: parent.height
                 onClicked: {
-                    guitarix_webview.url = "http://localhost:8003/"
+                    guitarix_webview.url = "http://localhost:" + cfg.setting('bluetooth/service_guitarix_web_port') + "/"
                 }
             }
         }
@@ -157,15 +161,14 @@ ApplicationWindow {
                     onClicked: {
                     }
                 }
-                MenuItem {
-                    // TODO: DEBUG
-                    text: "Connect"
-                    onClicked: {
-                        app.bluetooth().connectTo("00:1A:7D:DA:71:13")
-                        device_name.text = "OneButton" + " (" + "00:1A:7D:DA:71:13" + ")"
-                    }
-                }
             }
+        }
+    }
+
+    Component.onCompleted: {
+        if( cfg.setting('bluetooth/last_device_address') ) {
+            select_device.deviceSelected(cfg.setting('bluetooth/last_device_name'),
+                                         cfg.setting('bluetooth/last_device_address'))
         }
     }
 }
