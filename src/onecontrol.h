@@ -8,6 +8,8 @@ class QQmlApplicationEngine;
 class QTranslator;
 class QQmlContext;
 
+class Bluetooth;
+
 class OneControl
     : public QObject
 {
@@ -21,6 +23,8 @@ public:
     void init(QGuiApplication *app);
 
     void setLocale(QString locale);
+
+    Q_INVOKABLE Bluetooth* bluetooth() { return m_bluetooth; }
 
 signals:
 
@@ -41,6 +45,8 @@ private:
     QGuiApplication *m_app;
     QQmlContext     *m_context;
     QTranslator     *m_translator;
+
+    Bluetooth       *m_bluetooth;
 };
 
 #endif // ONECONTROL_H

@@ -1,18 +1,21 @@
 TEMPLATE = app
 
 # Project Version
-VERSION = 0.1
+VERSION = 0.2-alpha
 
 VERSION_STR='\\"$${VERSION}\\"'
 DEFINES += PROJECT_VERSION=\"$${VERSION_STR}\"
 
-QT += qml quick
+QT += qml quick bluetooth webview network
 CONFIG += c++11
 
 SOURCES += \
     src/main.cpp \
     src/onecontrol.cpp \
-    src/settings.cpp
+    src/settings.cpp \
+    src/bluetooth.cpp \
+    src/multiplexerhandler.cpp \
+    src/bluetoothmultiplexer.cpp
 
 RESOURCES += qml.qrc
 
@@ -24,4 +27,18 @@ include(deployment.pri)
 
 HEADERS += \
     src/onecontrol.h \
-    src/settings.h
+    src/settings.h \
+    src/bluetooth.h \
+    src/multiplexerhandler.h \
+    src/bluetoothmultiplexer.h
+
+DISTFILES += \
+    android/AndroidManifest.xml \
+    android/gradle/wrapper/gradle-wrapper.jar \
+    android/gradlew \
+    android/res/values/libs.xml \
+    android/build.gradle \
+    android/gradle/wrapper/gradle-wrapper.properties \
+    android/gradlew.bat
+
+ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android

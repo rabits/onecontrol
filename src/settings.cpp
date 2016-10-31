@@ -8,19 +8,19 @@ Settings::Settings(QObject *parent)
     : QObject(parent)
     , m_settings()
 {
-    qDebug("Create Settings");
+    qDebug() << this << "Creating";
 }
 
 Settings::Settings(QString &path, QObject *parent)
     : QObject(parent)
     , m_settings(path, QSettings::IniFormat)
 {
-    qDebug() << "Create Settings from file" << path;
+    qDebug() << this << "Create from file" << path;
 }
 
 Settings::~Settings()
 {
-    qDebug("Destroy Settings");
+    qDebug() << this << "Destroying";
 }
 
 QVariant Settings::setting(QString key, QVariant value)
@@ -30,7 +30,7 @@ QVariant Settings::setting(QString key, QVariant value)
         emit settingChanged(key);
     }
     if( m_settings.value(key).isNull() ) {
-        qWarning() << "Unable to find predefined setting" << key;
+        qWarning() << this << "Unable to find predefined setting" << key;
     }
 
     return m_settings.value(key);
@@ -44,7 +44,7 @@ bool Settings::isNull(QString key)
 void Settings::setDefault(QString key, QVariant value)
 {
     if( m_settings.value(key).isNull() ) {
-        qDebug() << "Set default value for" << key << "=" << value;
+        qDebug() << this << "Set default value for" << key << "=" << value;
         m_settings.setValue(key, value);
         emit settingChanged(key);
     }

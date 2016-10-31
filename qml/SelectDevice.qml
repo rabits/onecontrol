@@ -1,96 +1,77 @@
-import QtQuick 2.6
+import QtQuick 2.7
+import QtQuick.Controls 2.0
+import org.rabits.onecontrol 1.0
 
 Rectangle {
     id: select_device
 
-    height: 1280
-    width: 720
+    signal deviceSelected(string name, string address)
 
-    color: "#ffffff"
-
-    Rectangle {
-        id: header
-        anchors {
-            top: parent.top
-            bottom: parent.bottom
-            right: parent.right
-            left: parent.left
-            margins: 8
-            bottomMargin: parent.height * 0.8
-        }
-
-        color: "#7de27d"
+    BusyIndicator {
+        id: busy_indicator
+        anchors.fill: parent
+        opacity: 0.1
 
         Text {
-            id: header_caption
             anchors.fill: parent
-
-            text: qsTr("OneControl")
-            visible: true
+            text: qsTr("Scanning for devices...")
 
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignHCenter
-
-            font {
-                bold: true
-                pointSize: 25
-                family: "Verdana"
-            }
         }
     }
 
     ListView {
         id: devices_list
+
+        function deviceFound(name, address) {
+            console.log("Found new device: " + name + ' (' + address + ')')
+            devices_list.model.append({"name": name, "address": address})
+        }
+
         anchors {
-            top: header.bottom
-            bottom: parent.bottom
-            left: parent.left
-            right: parent.right
+            fill: parent
             margins: 8
         }
 
         clip: true
 
-        model: ListModel {
-            ListElement {
-                name: "Grey"
-                colorCode: "grey"
-            }
+        model: ListModel {}
 
-            ListElement {
-                name: "Red"
-                colorCode: "red"
-            }
-
-            ListElement {
-                name: "Blue"
-                colorCode: "blue"
-            }
-
-            ListElement {
-                name: "Green"
-                colorCode: "green"
-            }
-        }
-        delegate: Item {
-            x: 5
-            width: 80
+        delegate: Rectangle {
+            width: devices_list.width
             height: 40
-            Row {
-                id: row1
-                spacing: 10
-                Rectangle {
-                    width: 40
-                    height: 40
-                    color: colorCode
-                }
-
+            color: "#bbeeeeee"
+            Column {
                 Text {
                     text: name
                     font.bold: true
-                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: address
+                    color: "grey"
                 }
             }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: deviceSelected(name, address)
+            }
+        }
+
+        Component.onCompleted: {
+            app.bluetooth().deviceFound.connect(devices_list.deviceFound)
+            if( visible )
+                app.bluetooth().discoveryStart()
+        }
+    }
+
+    onVisibleChanged: {
+        if( visible ) {
+            app.bluetooth().discoveryStart()
+        } else {
+            app.bluetooth().discoveryStop()
+            devices_list.model.clear()
         }
     }
 }

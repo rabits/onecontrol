@@ -9,10 +9,13 @@
 #include <QScreen>
 #include <QDir>
 #include <QStandardPaths>
+#include <QUuid>
+#include <QtWebView/QtWebView>
 
 #include <signal.h>
 
 #include "settings.h"
+#include "bluetooth.h"
 
 OneControl* OneControl::s_pInstance = NULL;
 
@@ -21,8 +24,10 @@ OneControl::OneControl(QObject *parent)
     , m_engine(NULL)
     , m_app(NULL)
     , m_translator(NULL)
+    , m_bluetooth(NULL)
 {
-    qDebug("OneControl v%s", PROJECT_VERSION);
+    qDebug() << this << "Creating";
+    qDebug() << this << "version:" << PROJECT_VERSION;
 
     signal(SIGINT, OneControl::signalHandler);
 
@@ -31,8 +36,27 @@ OneControl::OneControl(QObject *parent)
     QCoreApplication::setApplicationName("OneControl");
     QCoreApplication::setApplicationVersion(PROJECT_VERSION);
 
+    QtWebView::initialize();
+
     // Application locale
     Settings::I()->setDefault("onecontrol/locale", QLocale::system().name());
+
+    // Bluetooth services
+    Settings::I()->setDefault("bluetooth/service_onebutton", "OneButton");
+    Settings::I()->setDefault("bluetooth/service_guitarix_rpc", "Guitarix RPC");
+    Settings::I()->setDefault("bluetooth/service_guitarix_web", "Guitarix WEB");
+
+    // Bluetooth UUID generation
+    // Onebutton Bluetooth namespace ("OneButtonBlueTNS")
+    QUuid onebutton_uuid("{4f6e6542-7574-746f-6e42-6c7565544e53}");
+    Settings::I()->setting("bluetooth/service_onebutton_uuid",
+                           QUuid::createUuidV5(onebutton_uuid,
+                                               Settings::I()->setting("bluetooth/service_onebutton").toString()).toString());
+
+    Settings::I()->setDefault("bluetooth/service_guitarix_web_port", 8003);
+    Settings::I()->setDefault("bluetooth/service_guitarix_rpc_port", 8000);
+
+    m_bluetooth = new Bluetooth(this);
 }
 
 OneControl::~OneControl()
@@ -40,7 +64,8 @@ OneControl::~OneControl()
     Settings::destroyI();
     delete m_translator;
     delete m_engine;
-    qDebug("Destroy OneControl");
+    delete m_bluetooth;
+    qDebug() << this << "Destroying";
 }
 
 void OneControl::signalHandler(int signal)
@@ -50,7 +75,7 @@ void OneControl::signalHandler(int signal)
 
 void OneControl::init(QGuiApplication *app)
 {
-    qDebug("Init OneControl");
+    qDebug() << this << "init";
 
     m_app = app;
     connect(app, SIGNAL(aboutToQuit()), this, SLOT(deleteMe()));
@@ -58,12 +83,11 @@ void OneControl::init(QGuiApplication *app)
     initInterface();
     initLocale();
     initEngine();
-
 }
 
 void OneControl::setLocale(QString locale)
 {
-    qDebug() << "Set locale to" << locale;
+    qDebug() << this << "Set locale to" << locale;
 
     if( ! m_translator->load("tr_" + locale, ":/") )
     {
@@ -74,7 +98,7 @@ void OneControl::setLocale(QString locale)
 
 void OneControl::initInterface()
 {
-    qDebug("Init OneControl interface");
+    qDebug() << this << "Init interface";
 
     m_engine = new QQmlApplicationEngine(this);
     m_context = m_engine->rootContext();
@@ -82,11 +106,13 @@ void OneControl::initInterface()
     m_context->setContextProperty("app", this);
     m_context->setContextProperty("cfg", Settings::I());
     m_context->setContextProperty("ss", QGuiApplication::primaryScreen()->physicalDotsPerInch() * QGuiApplication::primaryScreen()->devicePixelRatio() / 100);
+
+    qmlRegisterUncreatableType<Bluetooth>("org.rabits.onecontrol", 1, 0, "Bluetooth", "External type");
 }
 
 void OneControl::initLocale()
 {
-    qDebug("Init OneControl locale");
+    qDebug() << this << "Init locale";
 
     m_translator = new QTranslator(this);
     setLocale(Settings::I()->setting("onecontrol/locale").toString());
@@ -96,7 +122,7 @@ void OneControl::initLocale()
 
 void OneControl::initEngine()
 {
-    qDebug("Init OneControl qml interface");
+    qDebug() << this << "Init qml interface";
 
     m_engine->load(QUrl(QStringLiteral("qrc:/qml/main.qml")));
 }

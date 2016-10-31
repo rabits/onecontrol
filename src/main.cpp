@@ -14,7 +14,7 @@
 #include "settings.h"
 
 #ifdef Q_OS_ANDROID
-void printLogMessage(int priority, QString msg) { __android_log_print(priority, "asocial", msg.toLocal8Bit().constData()); }
+void printLogMessage(int priority, QString msg) { __android_log_print(priority, "onecontrol", msg.toLocal8Bit().constData()); }
 #else
 void printLogMessage(int, QString msg) { ::std::fprintf(stderr, "%s", msg.toLocal8Bit().constData()); }
 #endif
@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
 {
     qInstallMessageHandler(myMessageOutput);
 
+    QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QGuiApplication app(argc, argv);
 
     // Last argument is a configuration file
