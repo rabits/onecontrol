@@ -1,7 +1,7 @@
 TEMPLATE = app
 
 # Project Version
-VERSION = 0.2-alpha
+VERSION = 0.3-alpha
 
 VERSION_STR='\\"$${VERSION}\\"'
 DEFINES += PROJECT_VERSION=\"$${VERSION_STR}\"
@@ -15,7 +15,9 @@ SOURCES += \
     src/settings.cpp \
     src/bluetooth.cpp \
     src/multiplexerhandler.cpp \
-    src/bluetoothmultiplexer.cpp
+    src/bluetoothmultiplexer.cpp \
+    src/jsonrpc.cpp \
+    src/tcplistener.cpp
 
 RESOURCES += qml.qrc
 
@@ -30,7 +32,9 @@ HEADERS += \
     src/settings.h \
     src/bluetooth.h \
     src/multiplexerhandler.h \
-    src/bluetoothmultiplexer.h
+    src/bluetoothmultiplexer.h \
+    src/jsonrpc.h \
+    src/tcplistener.h
 
 DISTFILES += \
     android/AndroidManifest.xml \

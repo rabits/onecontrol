@@ -4,17 +4,17 @@
 #include <QObject>
 #include <QMap>
 
-
-class QTcpServer;
-class MultiplexerHandler;
+class QTcpSocket;
 class QBluetoothSocket;
+
+class MultiplexerHandler;
 
 class BluetoothMultiplexer
     : public QObject
 {
     Q_OBJECT
 public:
-    explicit BluetoothMultiplexer(const QString &address, const QString &service_uuid, const quint16 tcp_port, QObject *parent = 0);
+    explicit BluetoothMultiplexer(const QString &address, const QString &service_uuid, QObject *parent = 0);
 
     enum PacketType {
         TYPE_DATA = 0x00,         // Plain data
@@ -28,16 +28,18 @@ public:
         TYPE_SOCKET_CLOSE = 0xff  // Socket closed
     };
 
+    void writeGetAvailableServices();
     void writeSetService(const quint8 id, QString name);
     void writeServiceData(const PacketType type, const quint8 id, const QByteArray &data);
     void writeSocketClose(quint8 id);
     void write(const PacketType type, const QByteArray &data);
+
+    void createTcpConnection(const QString &service_name, QTcpSocket *client_socket);
     void removeTcpConnection(quint8 id);
 
 private:
     QBluetoothSocket *m_socket;
 
-    QTcpServer *m_tcpserver;
     QMap<quint8, MultiplexerHandler*> m_connections;
     quint8 m_connections_nextid;
 
@@ -52,17 +54,17 @@ private:
     void processNext(qint32 required_bytes, void (BluetoothMultiplexer::*function)());
 
 signals:
-    void availableServices(QList<QString> services);
+    void availableServices(QStringList services);
     void currentService(quint8 id, QString service);
     void stateChanged(bool connected);
 
     void _bufferInReady();
 
 private slots:
-    void _newTcpConnection();
     void _read();
     void _write();
     void _connected();
+    void _disconnected();
     void _stateChanged();
     void _error();
 

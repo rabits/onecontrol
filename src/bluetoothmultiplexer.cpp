@@ -1,16 +1,14 @@
 #include "bluetoothmultiplexer.h"
 
-#include <QTcpServer>
 #include <QTcpSocket>
 #include <QBluetoothSocket>
 #include <QDataStream>
 
 #include "multiplexerhandler.h"
 
-BluetoothMultiplexer::BluetoothMultiplexer(const QString &address, const QString &service_uuid, const quint16 tcp_port, QObject *parent)
+BluetoothMultiplexer::BluetoothMultiplexer(const QString &address, const QString &service_uuid, QObject *parent)
     : QObject(parent)
     , m_socket(NULL)
-    , m_tcpserver(NULL)
     , m_connections()
     , m_connections_nextid(1)
     , m_buffer_in_required(0)
@@ -26,8 +24,8 @@ BluetoothMultiplexer::BluetoothMultiplexer(const QString &address, const QString
     m_socket = new QBluetoothSocket(QBluetoothServiceInfo::RfcommProtocol, this);
 
     connect(m_socket, &QBluetoothSocket::connected, this, &BluetoothMultiplexer::_connected);
+    connect(m_socket, &QBluetoothSocket::disconnected, this, &BluetoothMultiplexer::_disconnected);
     connect(m_socket, &QBluetoothSocket::readyRead, this, &BluetoothMultiplexer::_read);
-
     connect(m_socket, &QBluetoothSocket::stateChanged, this, &BluetoothMultiplexer::_stateChanged);
     connect(m_socket, static_cast<void(QBluetoothSocket::*)(QBluetoothSocket::SocketError)>(&QBluetoothSocket::error),
             this, &BluetoothMultiplexer::_error);
@@ -35,10 +33,11 @@ BluetoothMultiplexer::BluetoothMultiplexer(const QString &address, const QString
     processNext(2, &BluetoothMultiplexer::_processInHeader);
 
     m_socket->connectToService(QBluetoothAddress(address), QBluetoothUuid(service_uuid));
+}
 
-    m_tcpserver = new QTcpServer(this);
-    connect(m_tcpserver, &QTcpServer::newConnection, this, &BluetoothMultiplexer::_newTcpConnection);
-    m_tcpserver->listen(QHostAddress(QHostAddress::LocalHost), tcp_port);
+void BluetoothMultiplexer::writeGetAvailableServices()
+{
+    write(TYPE_GETSERVICES, QByteArray());
 }
 
 void BluetoothMultiplexer::writeSetService(const quint8 id, QString name)
@@ -96,21 +95,21 @@ void BluetoothMultiplexer::write(const PacketType type, const QByteArray &data)
     stream << static_cast<quint8>(0);          // Version
     stream << static_cast<quint8>(type);       // Type
 
-    qDebug() << this << "Writing type:" << type << "size:" << data.size();
+    //qDebug() << this << "Writing type:" << type << "size:" << data.size();
 
     m_buffer_out_data.append(data);
     _write();
 }
 
-void BluetoothMultiplexer::_newTcpConnection()
+void BluetoothMultiplexer::createTcpConnection(const QString &service_name, QTcpSocket *client_socket)
 {
-    qDebug() << this << "received new tcp connection";
-    QTcpSocket *client_socket = m_tcpserver->nextPendingConnection();
-
     quint8 id = m_connections_nextid;
     while( m_connections.contains(id) )
         id++;
     m_connections_nextid = id+1;
+
+    writeSetService(id, service_name);
+
     m_connections.insert(id, new MultiplexerHandler(id, client_socket, this, this));
     connect(client_socket, &QAbstractSocket::disconnected, m_connections[id], &QObject::deleteLater);
 
@@ -163,13 +162,13 @@ void BluetoothMultiplexer::_processInHeader()
 
     stream >> m_buffer_in_version >> m_buffer_in_type;
 
-    switch( m_buffer_in_version ) {
+    switch( m_buffer_in_type ) {
         case TYPE_DATA:
-            qDebug() << this << "Receiving data";
+            //qDebug() << this << "Receiving data";
             processNext(5, &BluetoothMultiplexer::_processInDataHeader);
             break;
         case TYPE_QCOMPRESS:
-            qDebug() << this << "Receiving compressed data";
+            //qDebug() << this << "Receiving compressed data";
             processNext(5, &BluetoothMultiplexer::_processInDataHeader);
             break;
         case TYPE_GETSERVICES:
@@ -238,7 +237,7 @@ void BluetoothMultiplexer::_processInServiceHeader()
 void BluetoothMultiplexer::_processInService()
 {
     if( m_buffer_in_type == TYPE_GETSERVICES ) {
-        QList<QString> out;
+        QStringList out;
         QList<QByteArray> services = m_buffer_in_data.left(m_buffer_in_required).split(0x00);
         foreach(QByteArray svc, services)
             out.append(QString(svc));
@@ -279,15 +278,20 @@ void BluetoothMultiplexer::_processSocket()
 void BluetoothMultiplexer::_connected()
 {
     qDebug() << this << "connected";
+    writeGetAvailableServices();
+    emit stateChanged(true);
+}
+
+void BluetoothMultiplexer::_disconnected()
+{
+    qDebug() << this << "disconnected";
+    availableServices(QStringList());
+    emit stateChanged(false);
 }
 
 void BluetoothMultiplexer::_stateChanged()
 {
     qDebug() << this << "stateChanged" << m_socket->state();
-    if( m_socket->state() == QBluetoothSocket::ConnectedState )
-        emit stateChanged(true);
-    else if( m_socket->state() == QBluetoothSocket::UnconnectedState )
-        emit stateChanged(false);
 }
 
 void BluetoothMultiplexer::_error()

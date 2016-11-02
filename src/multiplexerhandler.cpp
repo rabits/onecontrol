@@ -11,10 +11,6 @@ MultiplexerHandler::MultiplexerHandler(quint8 id, QAbstractSocket *client, Bluet
 {
     qDebug() << this << "Creating";
 
-    m_mux->writeSetService(m_id, "Guitarix WEB");
-    //m_mux->writeSetService(m_id, "Guitarix RPC");
-    //m_mux->writeSetService(m_id, "SSH");
-
     connect(m_client, &QAbstractSocket::disconnected, this, &MultiplexerHandler::close);
     connect(m_client, &QAbstractSocket::stateChanged, this, &MultiplexerHandler::stateChanged);
     connect(m_client, static_cast<void(QAbstractSocket::*)(QAbstractSocket::SocketError)>(&QAbstractSocket::error),
@@ -32,22 +28,22 @@ MultiplexerHandler::~MultiplexerHandler()
 
 void MultiplexerHandler::clientRead()
 {
-    qDebug() << this << "client->server";
+    //qDebug() << this << "client->server";
     QByteArray data = m_client->readAll();
     if( data.size() == 0 ) {
         qDebug() << this << "  client read empty";
         return;
     }
 
-    qDebug() << this << "  client read done";
+    //qDebug() << this << "  client read done";
     m_mux->writeServiceData(BluetoothMultiplexer::TYPE_QCOMPRESS, m_id, data);
 }
 
 void MultiplexerHandler::clientWrite(const QByteArray &data)
 {
-    qDebug() << this << "server->client";
+    //qDebug() << this << "server->client";
     m_client->write(data);
-    qDebug() << this << "  client write done";
+    //qDebug() << this << "  client write done";
 }
 
 void MultiplexerHandler::close()

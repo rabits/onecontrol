@@ -11,11 +11,15 @@
 #include <QStandardPaths>
 #include <QUuid>
 #include <QtWebView/QtWebView>
+#include <QJsonValue>
+#include <QJsonObject>
+#include <QJsonArray>
 
 #include <signal.h>
 
 #include "settings.h"
 #include "bluetooth.h"
+#include "jsonrpc.h"
 
 OneControl* OneControl::s_pInstance = NULL;
 
@@ -43,8 +47,6 @@ OneControl::OneControl(QObject *parent)
 
     // Bluetooth services
     Settings::I()->setDefault("bluetooth/service_onebutton", "OneButton");
-    Settings::I()->setDefault("bluetooth/service_guitarix_rpc", "Guitarix RPC");
-    Settings::I()->setDefault("bluetooth/service_guitarix_web", "Guitarix WEB");
 
     // Bluetooth UUID generation
     // Onebutton Bluetooth namespace ("OneButtonBlueTNS")
@@ -52,9 +54,6 @@ OneControl::OneControl(QObject *parent)
     Settings::I()->setting("bluetooth/service_onebutton_uuid",
                            QUuid::createUuidV5(onebutton_uuid,
                                                Settings::I()->setting("bluetooth/service_onebutton").toString()).toString());
-
-    Settings::I()->setDefault("bluetooth/service_guitarix_web_port", 8003);
-    Settings::I()->setDefault("bluetooth/service_guitarix_rpc_port", 8000);
 
     m_bluetooth = new Bluetooth(this);
 }
@@ -96,6 +95,50 @@ void OneControl::setLocale(QString locale)
     }
 }
 
+QJSValue OneControl::jsonValue2JSValue(const QJsonValue &json_value)
+{
+    if( json_value.isObject() ) {
+        return jsonObject2JSObject(json_value.toObject());
+    } else if( json_value.isArray() ) {
+        return jsonArray2JSArray(json_value.toArray());
+    } else {
+        return jsonBasicValue2JSBasicValue(json_value);
+    }
+}
+QJSValue OneControl::jsonBasicValue2JSBasicValue(const QJsonValue &json_value)
+{
+    if( json_value.isBool() ) {
+        return QJSValue( json_value.toBool());
+    } else if( json_value.isDouble() ) {
+        return QJSValue( json_value.toDouble());
+    } else if( json_value.isString() ) {
+        return QJSValue( json_value.toString());
+    } else if( json_value.isNull() ) {
+        return QJSValue( QJSValue::NullValue);
+    } else if( json_value.isUndefined( ) ) {
+        return QJSValue(QJSValue::UndefinedValue);
+    } else {
+        return QJSValue();
+    }
+}
+
+QJSValue OneControl::jsonObject2JSObject(const QJsonObject &json_object)
+{
+    QJSValue result = m_engine->newObject();
+    foreach( const QString &key, json_object.keys() ) {
+        result.setProperty(key, jsonValue2JSValue(json_object.value(key)));
+    }
+    return result;
+}
+QJSValue OneControl::jsonArray2JSArray(const QJsonArray &json_array)
+{
+    QJSValue result = m_engine->newArray();
+    for( int i = 0; i < json_array.count(); ++i ) {
+        result.setProperty(static_cast<quint32>(i), jsonValue2JSValue(json_array[i]));
+    }
+    return result;
+}
+
 void OneControl::initInterface()
 {
     qDebug() << this << "Init interface";
@@ -108,6 +151,7 @@ void OneControl::initInterface()
     m_context->setContextProperty("ss", QGuiApplication::primaryScreen()->physicalDotsPerInch() * QGuiApplication::primaryScreen()->devicePixelRatio() / 100);
 
     qmlRegisterUncreatableType<Bluetooth>("org.rabits.onecontrol", 1, 0, "Bluetooth", "External type");
+    qmlRegisterType<JsonRPC>("org.rabits.onecontrol", 1, 0, "JsonRPC");
 }
 
 void OneControl::initLocale()

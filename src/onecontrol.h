@@ -2,6 +2,7 @@
 #define ONECONTROL_H
 
 #include <QObject>
+#include <QJSValue>
 
 class QGuiApplication;
 class QQmlApplicationEngine;
@@ -26,6 +27,10 @@ public:
 
     Q_INVOKABLE Bluetooth* bluetooth() { return m_bluetooth; }
 
+    QJSValue jsonValue2JSValue(const QJsonValue &json_value);
+    QJSValue jsonBasicValue2JSBasicValue(const QJsonValue &json_value);
+    QJSValue jsonObject2JSObject(const QJsonObject &json_object);
+    QJSValue jsonArray2JSArray(const QJsonArray &json_array);
 signals:
 
 public slots:

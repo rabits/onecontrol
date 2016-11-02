@@ -34,35 +34,34 @@ ApplicationWindow {
         Rectangle {
             id: onebutton_tab
             color: "#aa0000"
-            Rectangle {
-                id: audio_volume
-                anchors {
-                    top: parent.top
-                    left: parent.left
-                    right: parent.right
-                }
-                height: parent.height/3
-                color: "#bb0000"
+
+            JsonRPC {
+                id: onebutton_jsonrpc
             }
-            Rectangle {
-                id: system_poweroff
-                anchors {
-                    top: audio_volume.bottom
-                    left: parent.left
-                    right: parent.right
+            Column {
+                enabled: onebutton_jsonrpc.address_port != ""
+                Button {
+                    id: service_poweroff
+                    width: 100
+                    height: 100
+                    text: qsTr("Power off")
+                    onClicked: {
+                        onebutton_jsonrpc.requestCallback("system.poweroff", [], function(result){
+                            console.log(JSON.stringify(result))
+                        })
+                    }
                 }
-                height: parent.height/3
-                color: "#cc0000"
-            }
-            Rectangle {
-                id: update_onebutton
-                anchors {
-                    top: system_poweroff.bottom
-                    left: parent.left
-                    right: parent.right
+                Button {
+                    id: onebutton_restart
+                    width: 100
+                    height: 100
+                    text: qsTr("Restart")
+                    onClicked: {
+                        onebutton_jsonrpc.requestCallback("onebutton.restart", [], function(result){
+                            console.log(JSON.stringify(result))
+                        })
+                    }
                 }
-                height: parent.height/3
-                color: "#dd0000"
             }
         }
         Rectangle {
@@ -72,6 +71,31 @@ ApplicationWindow {
                 id: guitarix_webview
                 anchors.fill: parent
                 url: ""
+            }
+        }
+        Rectangle {
+            id: ssh_tab
+            color: "#aa0000"
+            Text {
+                id: ssh_service_header
+                anchors.fill: parent
+                anchors.bottomMargin: parent.height/2
+
+                verticalAlignment: Text.AlignBottom
+                horizontalAlignment: Text.AlignHCenter
+
+                font.bold: true
+                text: qsTr("SSH Service")
+            }
+            Text {
+                id: ssh_service_text
+                anchors.fill: parent
+                anchors.topMargin: parent.height/2
+
+                verticalAlignment: Text.AlignTop
+                horizontalAlignment: Text.AlignHCenter
+
+                text: qsTr("Disabled")
             }
         }
     }
@@ -95,13 +119,17 @@ ApplicationWindow {
         Connections {
             target: app.bluetooth()
             onStateChanged: {
-                device_name.text = (connected ? qsTr("Connected ") : qsTr("Disconnected ")) + select_device.name + " (" + select_device.address + ")"
+                device_name.text = (connected ? qsTr("Connected") : qsTr("Disconnected")) + " " + select_device.name + " (" + select_device.address + ")"
                 select_device.connected = connected
                 select_device.visible = ! connected
                 if( connected ) {
                     cfg.setting('bluetooth/last_device_name', select_device.name)
                     cfg.setting('bluetooth/last_device_address', select_device.address)
                 }
+            }
+            onAvailableServices: {
+                // Update onebutton address
+                onebutton_jsonrpc.address_port = app.bluetooth().getServiceAddress("OneControl")
             }
         }
     }
@@ -129,7 +157,17 @@ ApplicationWindow {
                 enabled: select_device.connected
                 height: parent.height
                 onClicked: {
-                    guitarix_webview.url = "http://localhost:" + cfg.setting('bluetooth/service_guitarix_web_port') + "/"
+                    guitarix_webview.url = "http://" + app.bluetooth().getServiceAddress("Guitarix WEB") + "/"
+                }
+            }
+            TabButton {
+                text: qsTr("SSH")
+                enabled: select_device.connected
+                height: parent.height
+                onClicked: {
+                    var address = app.bluetooth().getServiceAddress("SSH")
+                    if( address !== "" )
+                        ssh_service_text.text = qsTr("Available at address:") + " " + address
                 }
             }
         }
@@ -147,19 +185,16 @@ ApplicationWindow {
                 id: menu
                 x: menu_button.width - width
 
+                onVisibleChanged: {
+                    // Fix for WebView overlapping issue
+                    // http://doc.qt.io/qt-5/qml-qtwebview-webview.html#details
+                    if( guitarix_webview.visible )
+                        guitarix_webview.visible = ! visible
+                }
+
                 MenuItem {
                     text: "Select Device"
                     onClicked: select_device.visible = !select_device.visible
-                }
-                MenuItem {
-                    text: "Settings"
-                    onClicked: {
-                    }
-                }
-                MenuItem {
-                    text: "About"
-                    onClicked: {
-                    }
                 }
             }
         }
